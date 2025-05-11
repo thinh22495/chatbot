@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pandas
+openpyxl
+sentence-transformers
+transformers
+langchain
+faiss-cpu
+openpyxl
+python-dotenv
+pyvi
+accelerate

@@ -1,3 +1,21 @@
+# Chatbot Backend
+
+Đây là project backend cho hệ thống Chatbot, sử dụng [FastAPI](https://fastapi.tiangolo.com/) và [PostgreSQL](https://www.postgresql.org/) làm cơ sở dữ liệu. Project được tổ chức theo mô hình modular, dễ mở rộng và bảo trì.
+
+## Mục lục
+
+- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
+- [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)
+- [Cài đặt](#cài-đặt)
+- [Chạy ứng dụng](#chạy-ứng-dụng)
+- [Môi trường phát triển](#môi-trường-phát-triển)
+- [Thông tin liên hệ](#thông-tin-liên-hệ)
+
+---
+
+## Cấu trúc thư mục
+
+```plaintext
 backend/
 ├── app/
 │   ├── __init__.py
@@ -33,9 +51,64 @@ backend/
 │   │   ├── base.py          # Base model (SQLAlchemy declarative base)
 │   │   ├── session.py       # Tạo Engine & Session tới PostgreSQL
 │   │   └── migrations/      # (Tùy chọn) Alembic migrations
-│   └── utils/               # Hàm tiện ích (ví dụ xử lý file, embeddings,...)
+│   └── utils/               # Hàm tiện ích
 │       ├── __init__.py
 │       └── helpers.py
 ├── .env                     # Thiết lập biến môi trường (DB URL, etc.)
 ├── requirements.txt         # Danh sách thư viện Python cần thiết
 └── README.md
+```
+
+## Yêu cầu hệ thống
+
+- Python 3.8+
+- PostgreSQL
+- pip
+
+## Cài đặt
+
+1. **Clone repository:**
+    ```bash
+    git clone https://github.com/thinh22495/chatbot.git backend
+    cd backend
+    ```
+
+2. **Tạo virtual environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # hoặc venv\Scripts\activate trên Windows
+    ```
+
+3. **Cài đặt dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. **Cấu hình biến môi trường:**
+    - Tạo file `.env` dựa trên mẫu dưới đây:
+      ```
+      DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+      SECRET_KEY=your_secret_key
+      ```
+
+## Chạy ứng dụng
+
+```bash
+uvicorn app.main:app --reload
+```
+
+- API docs: http://localhost:8000/docs
+
+## Môi trường phát triển
+
+- **Quản lý database:** Sử dụng Alembic cho migration (nếu cần).
+- **Testing:** Có thể sử dụng pytest để viết và chạy test.
+
+## Thông tin liên hệ
+
+- Tác giả: Trần Hữu Thịnh
+- Email: thinh95.tranhuu@gmail.com
+
+---
+
+> Project này được phát triển với mục đích học tập và nghiên cứu.

@@ -209,13 +209,6 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
 def get_answer_from_documents_v2(user_id: int, message: str, db: Session):
     global faiss_index, faiss_id_map, tokenizer, model
 
-    PROMPT_PREFIX = (
-        "Bạn là trợ lý phần mềm. "
-        "Dựa trên câu hỏi và ngữ cảnh"
-        "Hãy trả lời chính xác, lịch sự bằng tiếng Việt. "
-        "Câu hỏi: "
-    )
-
     try:
         if faiss_index is None or faiss_id_map is None:
             success = rebuild_faiss_index(db)
@@ -241,8 +234,8 @@ def get_answer_from_documents_v2(user_id: int, message: str, db: Session):
         if not doc_context:
             answer = "Xin lỗi, tôi chưa có câu trả lời phù hợp."
         else:
-            # Sinh câu trả lời tự nhiên bằng mô hình ViT5 đã fine-tune
-            input_text = PROMPT_PREFIX + f"{message}\n Ngữ cảnh: {doc_context}\n Trả lời:"
+            # Sinh lại câu trả lời tự nhiên bằng ViT5 dựa trên câu hỏi và câu trả lời thô
+            input_text = f"Câu hỏi: {message}\nCâu trả lời thô: {doc_context}\n Chỉ dựa vào câu trả lời thô được cung cấp, hãy diễn đạt lại câu trả lời cho tự nhiên:"
             input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=256, truncation=True)
             output_ids = model.generate(input_ids, max_length=128, num_beams=4, early_stopping=True)
             answer = tokenizer.decode(output_ids[0], skip_special_tokens=True)
@@ -265,4 +258,29 @@ def get_answer_from_documents_v2(user_id: int, message: str, db: Session):
         print(f"{str(e)}")
         return "Đã xảy ra lỗi khi tìm kiếm câu trả lời. Vui lòng thử lại sau."
     
+def get_answer_from_documents_v3(user_id: int, message: str, db: Session):
+    global faiss_index, faiss_id_map, tokenizer, model
+    try: 
+        # Sử dụng dữ liệu fine-tune, tìm câu trả lời
+        input_text = f"Câu hỏi: {message}\n Trả lời:"
+        input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=256, truncation=True)
+        output_ids = model.generate(input_ids, max_length=128, num_beams=4, early_stopping=True)
+        answer = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
+        # Lưu lịch sử chat nếu có user_id hợp lệ
+        if user_id is not None:
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                history = ChatHistory(
+                    user_id=user_id,
+                    question=message,
+                    answer=answer.strip(),
+                    timestamp=datetime.utcnow()
+                )
+                db.add(history)
+                db.commit()
+        
+        return answer.strip()
+    except Exception as e:
+        print(f"{str(e)}")
+        return "Đã xảy ra lỗi khi tìm kiếm câu trả lời. Vui lòng thử lại sau."

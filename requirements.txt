@@ -12,3 +12,4 @@ openpyxl
 python-dotenv
 pyvi
 accelerate
+alembic

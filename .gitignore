@@ -1,0 +1,83 @@
+# File/directory biên dịch Python (tăng tốc, cache)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# File mở rộng C (thường dùng cho extension)
+*.so
+
+# File/thư mục liên quan đến đóng gói, phân phối Python
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# File cấu hình PyInstaller (đóng gói app thành exe)
+*.manifest
+*.spec
+
+# Log cài đặt, log lỗi pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# File/thư mục báo cáo kiểm thử, coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# File checkpoint của Jupyter Notebook
+.ipynb_checkpoints
+
+# File cấu hình pyenv (quản lý version Python)
+.python-version
+
+# Cache kiểm tra kiểu mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Cache kiểm tra kiểu Pyre
+.pyre/
+
+# File cấu hình môi trường (dotenv)
+.env
+.env.*
+
+# Cấu hình riêng của VS Code
+.vscode/
+
+# File migration Alembic (chỉ giữ lại script gốc, không commit migration phát sinh)
+alembic/versions/
+
+# File database SQLite local
+*.sqlite3
+
+# File log chung
+*.log
+
+# File hệ điều hành (ẩn, tạm)
+.DS_Store
+Thumbs.db

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.services.chat_service import get_answer_from_documents_v1, get_answer_from_documents_v2
+from app.services.chat_service import get_answer_from_documents_v1, get_answer_from_documents_v2, get_answer_from_documents_v3
 from app.services.user_service import get_or_create_user
 from app.db.session import get_db
 
@@ -42,5 +42,5 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     Lưu ý: Có thể sử dụng GPU để tăng tốc độ.
     """
     user_id = request.user_id
-    answer = get_answer_from_documents_v2(user_id, request.message, db)
+    answer = get_answer_from_documents_v3(user_id, request.message, db)
     return {"answer": answer}

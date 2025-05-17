@@ -10,6 +10,8 @@ from app.models.fine_tune_data import FineTuneData
 from datetime import datetime
 import pickle
 import torch
+from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
 
 # Khởi tạo mô hình embedding (có thể thực hiện 1 lần khi module được load)
 from sentence_transformers import SentenceTransformer
@@ -148,16 +150,39 @@ def rebuild_fine_tune(db: Session):
 def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
     global faiss_index, faiss_id_map
 
-    # BỔ SUNG: Prompt HƯỚNG DẪN
-    PROMPT_PREFIX = (
-        "Bạn là trợ lý phần mềm giáo dục. "
-        "Hãy trả lời chính xác, lịch sự bằng tiếng Việt. "
-        "Câu hỏi: "
-    )
+    # Các ngưỡng khoảng cách
+    THRESH_STRICT = 0.5
+    THRESH_SUGGEST = 1.0
 
     try:
-        # Ghép prompt vào trước câu hỏi người dùng
-        final_message = PROMPT_PREFIX + message
+        # Sử dụng LangChain ConversationBufferMemory để lấy lịch sử hội thoại
+        memory = ConversationBufferMemory(return_messages=True)
+        if user_id is not None:
+            chat_history = (
+                db.query(ChatHistory)
+                .filter(ChatHistory.user_id == user_id)
+                .order_by(ChatHistory.timestamp.desc())
+                .limit(3)
+                .all()
+            )
+            for h in reversed(chat_history):
+                memory.save_context(
+                    {"input": h.question},
+                    {"output": h.answer}
+                )
+
+        # Xây dựng prompt bằng LangChain PromptTemplate
+        prompt_template = PromptTemplate(
+            input_variables=["history", "question"],
+            template="{history}Người dùng: {question}\nTrợ lý:"
+        )
+        history_prompt = ""
+        for msg in memory.buffer_as_messages:
+            if msg.type == "human":
+                history_prompt += f"Người dùng: {msg.content}\n"
+            elif msg.type == "ai":
+                history_prompt += f"Trợ lý: {msg.content}\n"
+        final_message = prompt_template.format(history=history_prompt, question=message)
 
         if faiss_index is None or faiss_id_map is None:
             success = rebuild_faiss_index(db)
@@ -165,32 +190,37 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
                 return "Chưa có dữ liệu được đào tạo liên quan câu hỏi của bạn. Vui lòng hỏi lại sau khi tôi được cập nhật thêm!"
             faiss_index, faiss_id_map = load_faiss_index()
 
-        # Encode câu hỏi sau khi gắn prompt
         query_vec = embed_model.encode([final_message], convert_to_numpy=True)
         k = 3
         D, I = faiss_index.search(query_vec.astype('float32'), k)
 
-        answer = ""
-        for idx in I[0]:
-            if idx < len(faiss_id_map):
-                doc_id = faiss_id_map[idx]
-                doc = db.query(Document).get(doc_id)
-                if doc:
-                    answer += f"- {doc.answer}\n"
+        # Trường hợp 1: Khớp hoàn toàn
+        if D[0][0] < THRESH_STRICT:
+            idx = I[0][0]
+            doc_id = faiss_id_map[idx]
+            doc = db.query(Document).get(doc_id)
+            answer = doc.answer if doc else "Xin lỗi, tôi chưa có câu trả lời phù hợp."
+        # Trường hợp 2: Khớp vừa phải
+        elif D[0][0] < THRESH_SUGGEST:
+            suggestions = []
+            for idx in I[0]:
+                if idx < len(faiss_id_map):
+                    doc_id = faiss_id_map[idx]
+                    doc = db.query(Document).get(doc_id)
+                    if doc:
+                        suggestions.append(doc.question)
+            answer = (
+                "Tôi chưa chắc chắn về câu hỏi của bạn. Bạn có muốn hỏi một trong các câu sau không?\n"
+                + "\n".join(f"- {q}" for q in suggestions)
+            )
+        # Trường hợp 3: Không phù hợp
+        else:
+            answer = "Chưa có dữ liệu được đào tạo liên quan câu hỏi của bạn. Vui lòng hỏi lại sau khi tôi được cập nhật thêm!"
 
-        if not answer:
-            answer = "Xin lỗi, tôi chưa có câu trả lời phù hợp."
-
+        # Lưu lịch sử chat
         if user_id is not None:
-            # Kiểm tra user_id tồn tại trong DB
-            save_history = False
-            if user_id is not None:
-                user = db.query(User).filter(User.id == user_id).first()
-                if user:
-                    save_history = True
-
-            # Lưu lịch sử chat vào DB
-            if save_history:
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
                 history = ChatHistory(
                     user_id=user_id,
                     question=message,
@@ -199,7 +229,7 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
                 )
                 db.add(history)
                 db.commit()
-    
+
         return answer.strip()
     except Exception as e:
         print(f"{str(e)}")
@@ -208,13 +238,6 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
 
 def get_answer_from_documents_v2(user_id: int, message: str, db: Session):
     global faiss_index, faiss_id_map, tokenizer, model
-
-    PROMPT_PREFIX = (
-        "Bạn là trợ lý phần mềm. "
-        "Dựa trên câu hỏi và ngữ cảnh"
-        "Hãy trả lời chính xác, lịch sự bằng tiếng Việt. "
-        "Câu hỏi: "
-    )
 
     try:
         if faiss_index is None or faiss_id_map is None:
@@ -241,8 +264,8 @@ def get_answer_from_documents_v2(user_id: int, message: str, db: Session):
         if not doc_context:
             answer = "Xin lỗi, tôi chưa có câu trả lời phù hợp."
         else:
-            # Sinh câu trả lời tự nhiên bằng mô hình ViT5 đã fine-tune
-            input_text = PROMPT_PREFIX + f"{message}\n Ngữ cảnh: {doc_context}\n Trả lời:"
+            # Sinh lại câu trả lời tự nhiên bằng ViT5 dựa trên câu hỏi và câu trả lời thô
+            input_text = f"Câu hỏi: {message}\nCâu trả lời thô: {doc_context}\n Chỉ dựa vào câu trả lời thô được cung cấp, hãy diễn đạt lại câu trả lời cho tự nhiên:"
             input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=256, truncation=True)
             output_ids = model.generate(input_ids, max_length=128, num_beams=4, early_stopping=True)
             answer = tokenizer.decode(output_ids[0], skip_special_tokens=True)
@@ -265,4 +288,29 @@ def get_answer_from_documents_v2(user_id: int, message: str, db: Session):
         print(f"{str(e)}")
         return "Đã xảy ra lỗi khi tìm kiếm câu trả lời. Vui lòng thử lại sau."
     
+def get_answer_from_documents_v3(user_id: int, message: str, db: Session):
+    global faiss_index, faiss_id_map, tokenizer, model
+    try: 
+        # Sử dụng dữ liệu fine-tune, tìm câu trả lời
+        input_text = f"Câu hỏi: {message}\n Trả lời:"
+        input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=256, truncation=True)
+        output_ids = model.generate(input_ids, max_length=128, num_beams=4, early_stopping=True)
+        answer = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
+        # Lưu lịch sử chat nếu có user_id hợp lệ
+        if user_id is not None:
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                history = ChatHistory(
+                    user_id=user_id,
+                    question=message,
+                    answer=answer.strip(),
+                    timestamp=datetime.utcnow()
+                )
+                db.add(history)
+                db.commit()
+        
+        return answer.strip()
+    except Exception as e:
+        print(f"{str(e)}")
+        return "Đã xảy ra lỗi khi tìm kiếm câu trả lời. Vui lòng thử lại sau."

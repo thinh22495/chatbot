@@ -12,16 +12,7 @@ import pickle
 import torch
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
-
-# Khởi tạo mô hình embedding (có thể thực hiện 1 lần khi module được load)
-from sentence_transformers import SentenceTransformer
-embed_model = SentenceTransformer('dangvantuan/vietnamese-embedding')  # mô hình embedding tiếng Việt
-
-# Khởi tạo mô hình vit5 (có thể thực hiện 1 lần khi module được load)
-from transformers import T5Tokenizer, T5ForConditionalGeneration, Trainer, TrainingArguments, DataCollatorForSeq2Seq
-model_name = "VietAI/vit5-base" # mô hình fine-tune
-tokenizer = T5Tokenizer.from_pretrained(model_name)
-model = T5ForConditionalGeneration.from_pretrained(model_name)
+from pathlib import Path
 
 # Đường dẫn file lưu FAISS index và mapping
 INDEX_FILE = "data/faiss_index/faiss.index"
@@ -29,6 +20,23 @@ MAPPING_FILE = "data/faiss_index/mapping.pkl"
 
 # Đường dẫn file lưu dư liệu fine-tune
 FINE_TUNE_FILE = "data/fine_tune/"
+
+# Khởi tạo mô hình embedding (có thể thực hiện 1 lần khi module được load)
+from sentence_transformers import SentenceTransformer
+embed_model = SentenceTransformer('VoVanPhuc/sup-SimCSE-VietNamese-phobert-base')
+
+# Khởi tạo mô hình vit5 (ưu tiên load checkpoint fine-tune nếu có)
+# from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import Trainer, TrainingArguments, DataCollatorForSeq2Seq
+
+if Path(FINE_TUNE_FILE).exists(): #and (Path(FINE_TUNE_FILE) / "pytorch_model.bin").exists()
+    tokenizer = AutoTokenizer .from_pretrained(FINE_TUNE_FILE)
+    model = AutoModelForSeq2SeqLM .from_pretrained(FINE_TUNE_FILE)
+else:
+    model_name = "VietAI/vit5-base"
+    tokenizer = AutoTokenizer .from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM .from_pretrained(model_name)
 
 # Hàm load index và mapping nếu đã tạo trước đó
 def load_faiss_index():
@@ -54,7 +62,7 @@ def rebuild_faiss_index(db: Session):
     if not texts:
         return False
 
-    # Tạo vectors bằng mô hình embedding PhoBERT
+    # Tạo vectors bằng mô hình embedding
     vectors = embed_model.encode(texts, convert_to_numpy=True)
     dim = vectors.shape[1]
     index = faiss.IndexFlatL2(dim)
@@ -118,7 +126,7 @@ def rebuild_fine_tune(db: Session):
     # Thiết lập tham số huấn luyện
     training_args = TrainingArguments(
         output_dir=FINE_TUNE_FILE, # Thư mục lưu checkpoint sau khi fine-tune.
-        num_train_epochs=1, #Số epoch huấn luyện (mặc định 1).
+        num_train_epochs=3, #Số epoch huấn luyện (mặc định 1).
         per_device_train_batch_size=4, # Batch size cho mỗi thiết bị (mặc định 4).
         save_steps=10, #Lưu checkpoint sau mỗi số bước nhất định (mặc định 10).
         save_total_limit=2, # Số lượng checkpoint tối đa lưu trữ (mặc định 2).
@@ -142,7 +150,7 @@ def rebuild_fine_tune(db: Session):
 
     trainer.train()
     # Lưu checkpoint cuối cùng
-    model.save_pretrained(FINE_TUNE_FILE)
+    trainer.save_model(FINE_TUNE_FILE) # model.save_pretrained(FINE_TUNE_FILE)
     tokenizer.save_pretrained(FINE_TUNE_FILE)
 
     return True
@@ -151,46 +159,46 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
     global faiss_index, faiss_id_map
 
     # Các ngưỡng khoảng cách
-    THRESH_STRICT = 0.5
-    THRESH_SUGGEST = 1.0
+    THRESH_STRICT = 40
+    THRESH_SUGGEST = 70
 
     try:
-        # Sử dụng LangChain ConversationBufferMemory để lấy lịch sử hội thoại
-        memory = ConversationBufferMemory(return_messages=True)
-        if user_id is not None:
-            chat_history = (
-                db.query(ChatHistory)
-                .filter(ChatHistory.user_id == user_id)
-                .order_by(ChatHistory.timestamp.desc())
-                .limit(3)
-                .all()
-            )
-            for h in reversed(chat_history):
-                memory.save_context(
-                    {"input": h.question},
-                    {"output": h.answer}
-                )
+        # # Sử dụng LangChain ConversationBufferMemory để lấy lịch sử hội thoại
+        # memory = ConversationBufferMemory(return_messages=True)
+        # if user_id is not None:
+        #     chat_history = (
+        #         db.query(ChatHistory)
+        #         .filter(ChatHistory.user_id == user_id)
+        #         .order_by(ChatHistory.timestamp.desc())
+        #         .limit(3)
+        #         .all()
+        #     )
+        #     for h in reversed(chat_history):
+        #         memory.save_context(
+        #             {"input": h.question},
+        #             {"output": h.answer}
+        #         )
 
-        # Xây dựng prompt bằng LangChain PromptTemplate
-        prompt_template = PromptTemplate(
-            input_variables=["history", "question"],
-            template="{history}Người dùng: {question}\nTrợ lý:"
-        )
-        history_prompt = ""
-        for msg in memory.buffer_as_messages:
-            if msg.type == "human":
-                history_prompt += f"Người dùng: {msg.content}\n"
-            elif msg.type == "ai":
-                history_prompt += f"Trợ lý: {msg.content}\n"
-        final_message = prompt_template.format(history=history_prompt, question=message)
+        # # Xây dựng prompt bằng LangChain PromptTemplate
+        # prompt_template = PromptTemplate(
+        #     input_variables=["history", "question"],
+        #     template="{history}Người dùng: {question}\nTrợ lý:"
+        # )
+        # history_prompt = ""
+        # for msg in memory.buffer_as_messages:
+        #     if msg.type == "human":
+        #         history_prompt += f"Người dùng: {msg.content}\n"
+        #     elif msg.type == "ai":
+        #         history_prompt += f"Trợ lý: {msg.content}\n"
+        # final_message = prompt_template.format(history=history_prompt, question=message)
 
-        if faiss_index is None or faiss_id_map is None:
-            success = rebuild_faiss_index(db)
-            if not success:
-                return "Chưa có dữ liệu được đào tạo liên quan câu hỏi của bạn. Vui lòng hỏi lại sau khi tôi được cập nhật thêm!"
-            faiss_index, faiss_id_map = load_faiss_index()
+        # if faiss_index is None or faiss_id_map is None:
+        #     success = rebuild_faiss_index(db)
+        #     if not success:
+        #         return "Chưa có dữ liệu được đào tạo liên quan câu hỏi của bạn. Vui lòng hỏi lại sau khi tôi được cập nhật thêm!"
+        #     faiss_index, faiss_id_map = load_faiss_index()
 
-        query_vec = embed_model.encode([final_message], convert_to_numpy=True)
+        query_vec = embed_model.encode([message], convert_to_numpy=True)
         k = 3
         D, I = faiss_index.search(query_vec.astype('float32'), k)
 

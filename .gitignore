@@ -69,9 +69,6 @@ dmypy.json
 # Cấu hình riêng của VS Code
 .vscode/
 
-# File migration Alembic (chỉ giữ lại script gốc, không commit migration phát sinh)
-alembic/versions/
-
 # File database SQLite local
 *.sqlite3
 
@@ -84,3 +81,6 @@ Thumbs.db
 
 # File dữ liệu fine-tune
 data/fine_tune/*
+
+# File môi trường(ẩn, tạm)
+/.env

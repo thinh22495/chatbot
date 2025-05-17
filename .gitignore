@@ -1,12 +1,12 @@
-# Byte-compiled / optimized / DLL files
+# File/directory biên dịch Python (tăng tốc, cache)
 __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
+# File mở rộng C (thường dùng cho extension)
 *.so
 
-# Distribution / packaging
+# File/thư mục liên quan đến đóng gói, phân phối Python
 .Python
 build/
 develop-eggs/
@@ -20,23 +20,6 @@ parts/
 sdist/
 var/
 wheels/
-<<<<<<< HEAD
-*.egg-info/
-.installed.cfg
-*.egg
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-=======
 pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
@@ -53,7 +36,6 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # File/thư mục báo cáo kiểm thử, coverage
->>>>>>> 5c7772353f5b5ff11d4a67cd5b1410aaadd5309d
 htmlcov/
 .tox/
 .nox/
@@ -63,65 +45,6 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-<<<<<<< HEAD
-*.py,cover
-.hypothesis/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# IPython Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# dotenv
-.env
-.env.*
-
-# virtualenv
-venv/
-ENV/
-env/
-venv.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# mypy
-=======
 .hypothesis/
 .pytest_cache/
 
@@ -132,21 +55,10 @@ venv.bak/
 .python-version
 
 # Cache kiểm tra kiểu mypy
->>>>>>> 5c7772353f5b5ff11d4a67cd5b1410aaadd5309d
 .mypy_cache/
 .dmypy.json
 dmypy.json
 
-<<<<<<< HEAD
-# Pyre type checker
-.pyre/
-
-# profiling data
-.prof
-
-# Data files in data/fine_tune
-data/fine_tune/*
-=======
 # Cache kiểm tra kiểu Pyre
 .pyre/
 
@@ -169,4 +81,6 @@ alembic/versions/
 # File hệ điều hành (ẩn, tạm)
 .DS_Store
 Thumbs.db
->>>>>>> 5c7772353f5b5ff11d4a67cd5b1410aaadd5309d
+
+# File dữ liệu fine-tune
+data/fine_tune/*

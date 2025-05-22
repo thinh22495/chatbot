@@ -72,6 +72,11 @@ def rebuild_faiss_index(db: Session):
     faiss.write_index(index, INDEX_FILE)
     with open(MAPPING_FILE, 'wb') as f:
         pickle.dump(ids, f)
+
+    # Nạp lại FAISS index vào biến toàn cục
+    global faiss_index, faiss_id_map
+    faiss_index, faiss_id_map = load_faiss_index()
+
     return True
 
 def rebuild_fine_tune(db: Session):
@@ -115,6 +120,9 @@ def rebuild_fine_tune(db: Session):
                 max_length=self.max_length,
                 return_tensors="pt"
             )
+            # set labels, bỏ pad token
+            labels = target_enc.input_ids.squeeze()
+            labels[labels == self.tokenizer.pad_token_id] = -100
             return {
                 "input_ids": input_enc.input_ids.squeeze(),
                 "attention_mask": input_enc.attention_mask.squeeze(),
@@ -150,7 +158,7 @@ def rebuild_fine_tune(db: Session):
 
     trainer.train()
     # Lưu checkpoint cuối cùng
-    trainer.save_model(FINE_TUNE_FILE) # model.save_pretrained(FINE_TUNE_FILE)
+    model.save_pretrained(FINE_TUNE_FILE, safe_serialization=True) #trainer.save_model(FINE_TUNE_FILE) 
     tokenizer.save_pretrained(FINE_TUNE_FILE)
 
     return True
@@ -300,8 +308,8 @@ def get_answer_from_documents_v3(user_id: int, message: str, db: Session):
     global faiss_index, faiss_id_map, tokenizer, model
     try: 
         # Sử dụng dữ liệu fine-tune, tìm câu trả lời
-        input_text = f"Câu hỏi: {message}\n Trả lời:"
-        input_ids = tokenizer.encode(input_text, return_tensors="pt", max_length=256, truncation=True)
+        # input_text = f"Câu hỏi: {message}\n Trả lời:"
+        input_ids = tokenizer.encode(message, return_tensors="pt", max_length=256, truncation=True)
         output_ids = model.generate(input_ids, max_length=128, num_beams=4, early_stopping=True)
         answer = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 

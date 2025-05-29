@@ -7,6 +7,7 @@ from app.models.chat_history import ChatHistory
 from app.models.document import Document
 from app.models.user import User
 from app.models.fine_tune_data import FineTuneData
+from app.models.unknown_question import UnknownQuestion
 from datetime import datetime
 import pickle
 import torch
@@ -25,18 +26,18 @@ FINE_TUNE_FILE = "data/fine_tune/"
 from sentence_transformers import SentenceTransformer
 embed_model = SentenceTransformer('VoVanPhuc/sup-SimCSE-VietNamese-phobert-base')
 
-# Khởi tạo mô hình vit5 (ưu tiên load checkpoint fine-tune nếu có)
+# Khởi tạo mô hình (ưu tiên load checkpoint fine-tune nếu có)
 # from transformers import T5Tokenizer, T5ForConditionalGeneration
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from transformers import Trainer, TrainingArguments, DataCollatorForSeq2Seq
 
-if Path(FINE_TUNE_FILE).exists(): #and (Path(FINE_TUNE_FILE) / "pytorch_model.bin").exists()
+if Path(FINE_TUNE_FILE).exists() and (Path(FINE_TUNE_FILE) / "pytorch_model.bin").exists():
     tokenizer = AutoTokenizer .from_pretrained(FINE_TUNE_FILE)
     model = AutoModelForSeq2SeqLM .from_pretrained(FINE_TUNE_FILE)
 else:
     model_name = "VietAI/vit5-base"
-    tokenizer = AutoTokenizer .from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM .from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
 # Hàm load index và mapping nếu đã tạo trước đó
 def load_faiss_index():
@@ -55,24 +56,35 @@ def rebuild_faiss_index(db: Session):
     """
     Tạo lại FAISS index từ tất cả Document trong DB.
     Lưu index ra file và lưu mapping id.
+    Tự động nạp lại index sau khi rebuild.
     """
-    docs = db.query(Document).all()
-    texts = [doc.question for doc in docs]
-    ids = [doc.id for doc in docs]
-    if not texts:
+    global faiss_index, faiss_id_map
+
+    try:
+        docs = db.query(Document).all()
+        texts = [doc.question for doc in docs]
+        ids = [doc.id for doc in docs]
+        if not texts:
+            return False
+
+        # Tạo vectors bằng mô hình embedding
+        vectors = embed_model.encode(texts, convert_to_numpy=True)
+        dim = vectors.shape[1]
+        index = faiss.IndexFlatL2(dim)
+        index.add(vectors.astype('float32'))
+
+        # Lưu index và mapping
+        faiss.write_index(index, INDEX_FILE)
+        with open(MAPPING_FILE, 'wb') as f:
+            pickle.dump(ids, f)
+
+        # Nạp lại index và mapping vào biến global
+        faiss_index, faiss_id_map = load_faiss_index()
+        
+        return True
+    except Exception as e:
+        print(f"Lỗi quá trình faiss dữ liệu: {str(e)}")
         return False
-
-    # Tạo vectors bằng mô hình embedding
-    vectors = embed_model.encode(texts, convert_to_numpy=True)
-    dim = vectors.shape[1]
-    index = faiss.IndexFlatL2(dim)
-    index.add(vectors.astype('float32'))
-
-    # Lưu index và mapping
-    faiss.write_index(index, INDEX_FILE)
-    with open(MAPPING_FILE, 'wb') as f:
-        pickle.dump(ids, f)
-    return True
 
 def rebuild_fine_tune(db: Session):
     """
@@ -163,41 +175,6 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
     THRESH_SUGGEST = 70
 
     try:
-        # # Sử dụng LangChain ConversationBufferMemory để lấy lịch sử hội thoại
-        # memory = ConversationBufferMemory(return_messages=True)
-        # if user_id is not None:
-        #     chat_history = (
-        #         db.query(ChatHistory)
-        #         .filter(ChatHistory.user_id == user_id)
-        #         .order_by(ChatHistory.timestamp.desc())
-        #         .limit(3)
-        #         .all()
-        #     )
-        #     for h in reversed(chat_history):
-        #         memory.save_context(
-        #             {"input": h.question},
-        #             {"output": h.answer}
-        #         )
-
-        # # Xây dựng prompt bằng LangChain PromptTemplate
-        # prompt_template = PromptTemplate(
-        #     input_variables=["history", "question"],
-        #     template="{history}Người dùng: {question}\nTrợ lý:"
-        # )
-        # history_prompt = ""
-        # for msg in memory.buffer_as_messages:
-        #     if msg.type == "human":
-        #         history_prompt += f"Người dùng: {msg.content}\n"
-        #     elif msg.type == "ai":
-        #         history_prompt += f"Trợ lý: {msg.content}\n"
-        # final_message = prompt_template.format(history=history_prompt, question=message)
-
-        # if faiss_index is None or faiss_id_map is None:
-        #     success = rebuild_faiss_index(db)
-        #     if not success:
-        #         return "Chưa có dữ liệu được đào tạo liên quan câu hỏi của bạn. Vui lòng hỏi lại sau khi tôi được cập nhật thêm!"
-        #     faiss_index, faiss_id_map = load_faiss_index()
-
         query_vec = embed_model.encode([message], convert_to_numpy=True)
         k = 3
         D, I = faiss_index.search(query_vec.astype('float32'), k)
@@ -221,9 +198,24 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
                 "Tôi chưa chắc chắn về câu hỏi của bạn. Bạn có muốn hỏi một trong các câu sau không?\n"
                 + "\n".join(f"- {q}" for q in suggestions)
             )
+            
+            # Lưu câu hỏi chưa có câu trả lời chính xác
+            unanswered = UnknownQuestion(
+                question=message,
+                timestamp=datetime.utcnow()
+            )
+            db.add(unanswered)
+            
         # Trường hợp 3: Không phù hợp
         else:
             answer = "Chưa có dữ liệu được đào tạo liên quan câu hỏi của bạn. Vui lòng hỏi lại sau khi tôi được cập nhật thêm!"
+            
+            # Lưu câu hỏi chưa có câu trả lời
+            unanswered = UnknownQuestion(
+                question=message,
+                timestamp=datetime.utcnow()
+            )
+            db.add(unanswered)
 
         # Lưu lịch sử chat
         if user_id is not None:
@@ -236,9 +228,10 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
                     timestamp=datetime.utcnow()
                 )
                 db.add(history)
-                db.commit()
-
+                
+        db.commit()
         return answer.strip()
+        
     except Exception as e:
         print(f"{str(e)}")
         return "Đã xảy ra lỗi khi tìm kiếm câu trả lời. Vui lòng thử lại sau."

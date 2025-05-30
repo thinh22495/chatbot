@@ -33,7 +33,7 @@ def parse_date(date_str: Optional[str]) -> Optional[date]:
             detail="Định dạng thời gian không hợp lệ. Hãy sử dụng MM-DD-YYYY hoặc MM/DD/YYYY"
         )
 
-@router.get("/questions", response_model=UnknownQuestionResponse)
+@router.get("/questions", response_model=UnknownQuestionResponse, summary="Lấy danh sách câu hỏi chưa có câu trả lời")
 def get_unanswered_questions(
     db: Session = Depends(get_db),
     page: int = Query(default=1, ge=1, description="Số trang"),
@@ -82,51 +82,7 @@ def get_unanswered_questions(
         }
     }
 
-@router.delete("/clear-all")
-def delete_all_questions(
-    db: Session = Depends(get_db),
-    confirm: bool = Query(False, description="Xác nhận xóa toàn bộ dữ liệu"),
-    x_admin_token: str = Header(None, description="Admin token for authentication")
-):
-    """
-    Xóa toàn bộ câu hỏi trong bảng UnknownQuestion.
-    Yêu cầu xác nhận và admin token.
-    
-    - **confirm**: Phải set true để xác nhận xóa
-    - **x_admin_token**: Token xác thực admin
-    """
-    # Kiểm tra admin token
-    if x_admin_token != "your-admin-token":  # Thay thế bằng logic xác thực thực tế
-        raise HTTPException(
-            status_code=403,
-            detail="Không có quyền thực hiện thao tác này"
-        )
-    
-    # Yêu cầu xác nhận
-    if not confirm:
-        raise HTTPException(
-            status_code=400,
-            detail="Vui lòng xác nhận xóa bằng cách set confirm=true"
-        )
-    
-    try:
-        # Xóa toàn bộ records
-        count = db.query(UnknownQuestion).delete()
-        db.commit()
-        
-        return {
-            "status": "success",
-            "message": f"Đã xóa {count} câu hỏi",
-            "deleted_count": count
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Lỗi khi xóa dữ liệu: {str(e)}"
-        )
-
-@router.get("/export-excel")
+@router.get("/export-excel", summary="Xuất toàn bộ câu hỏi chưa trả lời ra Excel")
 def export_to_excel(
     db: Session = Depends(get_db),
 ):
@@ -182,3 +138,48 @@ def export_to_excel(
             status_code=500,
             detail=f"Lỗi khi export dữ liệu: {str(e)}"
         )
+
+@router.delete("/clear-all", summary="Xóa toàn bộ câu hỏi chưa trả lời")
+def delete_all_questions(
+    db: Session = Depends(get_db),
+    confirm: bool = Query(False, description="Xác nhận xóa toàn bộ dữ liệu"),
+    x_admin_token: str = Header(None, description="Admin token for authentication")
+):
+    """
+    Xóa toàn bộ câu hỏi trong bảng UnknownQuestion.
+    Yêu cầu xác nhận và admin token.
+    
+    - **confirm**: Phải set true để xác nhận xóa
+    - **x_admin_token**: Token xác thực admin
+    """
+    # Kiểm tra admin token
+    if x_admin_token != "your-admin-token":  # Thay thế bằng logic xác thực thực tế
+        raise HTTPException(
+            status_code=403,
+            detail="Không có quyền thực hiện thao tác này"
+        )
+    
+    # Yêu cầu xác nhận
+    if not confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="Vui lòng xác nhận xóa bằng cách set confirm=true"
+        )
+    
+    try:
+        # Xóa toàn bộ records
+        count = db.query(UnknownQuestion).delete()
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Đã xóa {count} câu hỏi",
+            "deleted_count": count
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi khi xóa dữ liệu: {str(e)}"
+        )
+

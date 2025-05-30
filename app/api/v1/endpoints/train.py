@@ -37,7 +37,6 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
     docs = create_documents_from_excel(df, db)
     return {"message": f"Đã thêm {len(docs)} bản ghi từ file Excel."}
 
-
 @router.post("/start", summary="Xây dựng FAISS index từ dữ liệu đã upload")
 def start_training(db: Session = Depends(get_db)):
     """
@@ -52,7 +51,7 @@ def start_training(db: Session = Depends(get_db)):
 def list_documents(
     db: Session = Depends(get_db),
     page: int = Query(default=1, ge=1, description="Số trang"),
-    page_size: int = Query(default=10, ge=1, le=100, description="Số item trên mỗi trang")
+    page_size: int = Query(default=100, ge=1, le=100, description="Số item trên mỗi trang")
 ):
     """
     Trả về danh sách các tài liệu (câu hỏi và hướng dẫn) đang có, có phân trang.
@@ -86,18 +85,6 @@ def list_documents(
             "total_pages": total_pages
         }
     }
-
-@router.delete("/{document_id}", summary="Xóa tài liệu huấn luyện theo ID")
-def delete_document_endpoint(document_id: int, db: Session = Depends(get_db)):
-    """
-    Xoá tài liệu huấn luyện (Document) theo ID.
-    Lưu ý: Sau khi xóa, có thể cần gọi lại /train/start để xây dựng lại index FAISS.
-    """
-    success = delete_document(document_id, db)
-    if not success:
-        raise HTTPException(status_code=404, detail="Document không tồn tại.")
-    # Có thể rebuild FAISS index ở đây hoặc yêu cầu client gọi lại /train/start.
-    return {"message": f"Đã xoá document với id = {document_id}."}
 
 @router.get("/export-excel", summary="Xuất toàn bộ tài liệu huấn luyện ra Excel")
 def export_documents_to_excel(
@@ -157,14 +144,26 @@ def export_documents_to_excel(
             detail=f"Lỗi khi export dữ liệu: {str(e)}"
         )
 
-@router.delete("/clear-all")
+@router.delete("/{document_id}", summary="Xóa tài liệu huấn luyện theo ID")
+def delete_document_endpoint(document_id: int, db: Session = Depends(get_db)):
+    """
+    Xoá tài liệu huấn luyện (Document) theo ID.
+    Lưu ý: Sau khi xóa, có thể cần gọi lại /train/start để xây dựng lại index FAISS.
+    """
+    success = delete_document(document_id, db)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document không tồn tại.")
+    # Có thể rebuild FAISS index ở đây hoặc yêu cầu client gọi lại /train/start.
+    return {"message": f"Đã xoá document với id = {document_id}."}
+
+@router.delete("/clear-all", summary="Xóa toàn bộ tài liệu huấn luyện")
 def delete_all_documents(
     db: Session = Depends(get_db),
     confirm: bool = Query(False, description="Xác nhận xóa toàn bộ dữ liệu"),
     x_admin_token: str = Header(None, description="Admin token for authentication")
 ):
     """
-    Xóa toàn bộ câu hỏi trong bảng UnknownQuestion.
+    Xóa toàn bộ câu hỏi trong bảng Document.
     Yêu cầu xác nhận và admin token.
     
     - **confirm**: Phải set true để xác nhận xóa

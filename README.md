@@ -1,6 +1,7 @@
-# Chatbot Backend
+# Chatbot VietNamese Backend
 
-Đây là project backend cho hệ thống Chatbot, sử dụng [FastAPI](https://fastapi.tiangolo.com/) và [PostgreSQL](https://www.postgresql.org/) làm cơ sở dữ liệu. Project được tổ chức theo mô hình modular, dễ mở rộng và bảo trì.
+Đây là project backend cho hệ thống Chatbot trả lời tiếng việt, sử dụng [FastAPI](https://fastapi.tiangolo.com/) và [PostgreSQL](https://www.postgresql.org/) làm cơ sở dữ liệu. Project được tổ chức theo mô hình modular, dễ mở rộng và bảo trì.
+Chức năng Chatbot là trả lời hội thoại dưới dạng QA. Dữ liệu được nạp dạng danh sách bộ câu hỏi FQA. Chatbot có 2 cơ chế để hiểu bộ dữ liệu là faiss và fine-tune. Và có nhiều endpoint API tương đương phiên bản chat v1, v2,... Các phiên bản chat cũ sẽ được giữ nguyên, các phiên bản chat mới sẽ được tích hợp thêm và mở rộng dưới dạng các endpoint chat trong tương lai.
 
 ## Mục lục
 

@@ -28,7 +28,6 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
     docs = create_documents_from_excel(df, db)
     return {"message": f"Đã thêm {len(docs)} bản ghi từ file Excel."}
 
-
 @router.post("/start", summary="Fine-tune từ dữ liệu đã upload")
 def start_training(db: Session = Depends(get_db)):
     """

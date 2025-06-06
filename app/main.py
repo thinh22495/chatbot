@@ -1,6 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
-from app.api.v1.endpoints import chat, train, fine_tune
+from app.api.v1.endpoints import chat, train, fine_tune, unknown_question
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Chatbot AI")
@@ -8,6 +8,7 @@ app = FastAPI(title="Chatbot AI")
 app.include_router(chat.router)
 app.include_router(train.router)
 app.include_router(fine_tune.router)
+app.include_router(unknown_question.router)
 
 # Cấu hình CORS
 app.add_middleware(

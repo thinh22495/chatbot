@@ -8,7 +8,7 @@ from app.services.fine_tune_data_service import create_documents_from_excel, del
 from app.services.chat_service import rebuild_fine_tune
 from app.db.session import SessionLocal, get_db
 
-router = APIRouter(prefix="/fine_tune", tags=["fine tune"])
+router = APIRouter(prefix="/fine_tune", tags=["Quản lý tài liệu fine-tune"])
 
 @router.post("/upload", summary="Upload file Excel để thêm dữ liệu huấn luyện câu trả lời theo ngữ cảnh")
 async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db)):

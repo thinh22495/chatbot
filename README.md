@@ -1,14 +1,26 @@
-# Chatbot VietNamese Backend
+# Chatbot Backend (VietNamese)
 
-Đây là project backend cho hệ thống Chatbot trả lời tiếng việt, sử dụng [FastAPI](https://fastapi.tiangolo.com/) và [PostgreSQL](https://www.postgresql.org/) làm cơ sở dữ liệu. Project được tổ chức theo mô hình modular, dễ mở rộng và bảo trì.
-Chức năng Chatbot là trả lời hội thoại dưới dạng QA. Dữ liệu được nạp dạng danh sách bộ câu hỏi FQA. Chatbot có 2 cơ chế để hiểu bộ dữ liệu là faiss và fine-tune. Và có nhiều endpoint API tương đương phiên bản chat v1, v2,... Các phiên bản chat cũ sẽ được giữ nguyên, các phiên bản chat mới sẽ được tích hợp thêm và mở rộng dưới dạng các endpoint chat trong tương lai.
+Đây là backend cho hệ thống Chatbot trả lời tiếng Việt, xây dựng bằng [FastAPI](https://fastapi.tiangolo.com/) và sử dụng [PostgreSQL](https://www.postgresql.org/) làm cơ sở dữ liệu.  
+Project hỗ trợ các chức năng quản lý tài liệu huấn luyện (FAQ), upload dữ liệu, xây dựng và cập nhật chỉ mục tìm kiếm (FAISS), cũng như các endpoint API phục vụ hội thoại chatbot.
+
+**Các tính năng chính:**
+- Quản lý tài liệu huấn luyện (thêm, xóa, xuất dữ liệu, phân trang)
+- Upload file Excel để bổ sung dữ liệu huấn luyện
+- Xây dựng và cập nhật FAISS index để tìm kiếm câu trả lời nhanh chóng
+- Hỗ trợ nhiều phiên bản endpoint chat (v1, v2, ...)
+- Dễ dàng mở rộng, tích hợp thêm các mô hình hoặc chức năng mới
+- Sử dụng Alembic để quản lý migration cho database
+- Đóng gói và triển khai thuận tiện với Docker/Docker Compose
+
+Project phù hợp cho các bài toán chatbot FAQ, tư vấn tự động, hoặc làm nền tảng phát triển các hệ thống hỏi đáp tiếng Việt.
 
 ## Mục lục
 
 - [Cấu trúc thư mục](#cấu-trúc-thư-mục)
 - [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)
 - [Cài đặt](#cài-đặt)
-- [Chạy ứng dụng](#chạy-ứng-dụng)
+- [Chạy ứng dụng trực tiếp](#chạy-ứng-dụng-trực-tiếp)
+- [Chạy ứng dụng bằng Docker](#chạy-ứng-dụng-bằng-docker)
 - [Môi trường phát triển](#môi-trường-phát-triển)
 - [Thông tin liên hệ](#thông-tin-liên-hệ)
 
@@ -92,13 +104,50 @@ backend/
       SECRET_KEY=your_secret_key
       ```
 
-## Chạy ứng dụng
+## Chạy ứng dụng trực tiếp
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
 - API docs: http://localhost:8000/docs
+
+## Chạy ứng dụng bằng Docker
+
+1. **Cài đặt Docker và Docker Compose**  
+   Đảm bảo bạn đã cài [Docker](https://www.docker.com/products/docker-desktop/) và [Docker Compose](https://docs.docker.com/compose/).
+
+2. **Cấu hình biến môi trường**  
+   Tạo file `.env` ở thư mục gốc (nếu chưa có), ví dụ:
+   ```
+   POSTGRES_USER=chatbot
+   POSTGRES_PASSWORD=chatbot
+   POSTGRES_SERVER=db
+   POSTGRES_DB=chatbotdb
+   POSTGRES_PORT=5432
+   ```
+
+3. **Chạy ứng dụng với Docker Compose**  
+   ```bash
+   docker-compose up --build
+   ```
+
+   - Lần đầu chạy sẽ tự động build image và khởi tạo database.
+   - API docs: http://localhost:8000/docs
+
+4. **Chạy migration (nếu cần thủ công):**  
+   Nếu muốn chạy migration thủ công, vào container backend:
+   ```bash
+   docker-compose exec backend alembic upgrade head
+   ```
+
+---
+
+**Lưu ý:**  
+- Nếu thay đổi models, hãy tạo migration mới rồi chạy lại migration trong container backend.
+- Dữ liệu PostgreSQL sẽ được lưu trong volume `postgres_data` (không mất khi dừng container).
+
+---
 
 ## Môi trường phát triển
 

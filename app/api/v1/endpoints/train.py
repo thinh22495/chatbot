@@ -13,7 +13,7 @@ from app.services.document_service import create_documents_from_excel, delete_do
 from app.services.chat_service import rebuild_faiss_index
 from app.db.session import SessionLocal, get_db
 
-router = APIRouter(prefix="/train", tags=["train"])
+router = APIRouter(prefix="/train", tags=["Quản lý tài liệu huấn luyện"])
 
 # First, create a pagination response schema if not exists
 class DocumentResponse(PaginationResponse):

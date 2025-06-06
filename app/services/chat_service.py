@@ -184,7 +184,7 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
             idx = I[0][0]
             doc_id = faiss_id_map[idx]
             doc = db.query(Document).get(doc_id)
-            answer = doc.answer if doc else "Xin lỗi, tôi chưa có câu trả lời phù hợp."
+            answer = doc.answer
         # Trường hợp 2: Khớp vừa phải
         elif D[0][0] < THRESH_SUGGEST:
             suggestions = []
@@ -208,7 +208,9 @@ def get_answer_from_documents_v1(user_id: int, message: str, db: Session):
             
         # Trường hợp 3: Không phù hợp
         else:
-            answer = "Chưa có dữ liệu được đào tạo liên quan câu hỏi của bạn. Vui lòng hỏi lại sau khi tôi được cập nhật thêm!"
+            answer = "Chưa có dữ liệu được đào tạo liên quan câu hỏi của bạn. Câu hỏi của bạn đã được ghi nhận vào hệ thống." + \
+                    "Vui lòng hỏi lại sau khi tôi được cập nhật thêm!" + \
+                    "Trong khi đó, bạn có muốn biết thêm thông tin gì khác không?"
             
             # Lưu câu hỏi chưa có câu trả lời
             unanswered = UnknownQuestion(

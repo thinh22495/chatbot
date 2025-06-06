@@ -6,9 +6,9 @@ from app.services.chat_service import get_answer_from_documents_v1, get_answer_f
 from app.services.user_service import get_or_create_user
 from app.db.session import get_db
 
-router = APIRouter(tags=["chat"])
+router = APIRouter(prefix="/chat", tags=["Trò chuyện với chatbot"])
 
-@router.post("/chat/v1", response_model=ChatResponse, summary="Chat với chatbot v1 (trả lời tiếng Việt)")
+@router.post("/v1", response_model=ChatResponse, summary="Chat với chatbot v1 (trả lời tiếng Việt)")
 def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     """
     Nhận message (tiếng Việt) từ user, trả về câu trả lời.
@@ -20,7 +20,7 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     answer = get_answer_from_documents_v1(user_id, request.message, db)
     return {"answer": answer}
 
-@router.post("/chat/v2", response_model=ChatResponse, summary="Chat với chatbot v2 (trả lời tiếng Việt)")
+@router.post("/v2", response_model=ChatResponse, summary="Chat với chatbot v2 (trả lời tiếng Việt)")
 def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     """
     Nhận message (tiếng Việt) từ user, trả về câu trả lời.
@@ -33,7 +33,7 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     answer = get_answer_from_documents_v2(user_id, request.message, db)
     return {"answer": answer}
 
-@router.post("/chat/v3", response_model=ChatResponse, summary="Chat với chatbot v3 (trả lời tiếng Việt)")
+@router.post("/v3", response_model=ChatResponse, summary="Chat với chatbot v3 (trả lời tiếng Việt)")
 def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     """
     Nhận message (tiếng Việt) từ user, trả về câu trả lời.
